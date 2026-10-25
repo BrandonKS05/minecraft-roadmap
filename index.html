@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d1c28" media="(prefers-color-scheme: dark)">
+<title>Survival Progression Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4fa; --surface:#ffffff; --text:#1c1b2e; --muted:#6a6882; --border:#e4e2ee; --track:#e9e7f3;
+  --accent:#5a4fcf; --accent-soft:#eeecfc; --accent-border:#d9d4fa; --danger:#c8463f;
+  --farm:#ecebfa; --farm-stroke:#dbd8f4; --farm-text:#231f5a;
+  --once:#fbeee4; --once-stroke:#f0dccb; --once-text:#4a2a12;
+  --start:#e3f2cf; --start-stroke:#cde4ab; --start-text:#1f3d05;
+  --finish:#3f3694; --finish-stroke:#3f3694; --finish-text:#ffffff;
+  --todo:#ffffff; --todo-stroke:#b6b3cb; --todo-text:#4a4860;
+  --locked:#ecebef; --locked-stroke:#dddce3; --locked-text:#8e8d9a; --locked-sub:#a5a4b0;
+  --current:#ffffff; --current-text:#1c1b2e;
+  --done:#DDEFC6; --done-stroke:#c3dd9f; --done-text:#173404; --done-badge:#4f8a1e;
+  --edge:#c6c3d9; --edge-done:#6aa63a;
+  --toast-bg:#1c1b2e; --toast-text:#ffffff;
+  --shadow:0 12px 32px rgba(30,20,80,.18); --shadow-sm:0 4px 14px rgba(20,10,60,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14131c; --surface:#1d1c28; --text:#ecebf5; --muted:#a3a1b8; --border:#2c2b3a; --track:#2c2b3a;
+    --accent:#8f85ff; --accent-soft:#272546; --accent-border:#3b3870; --danger:#e0605a;
+    --farm:#2a2857; --farm-stroke:#3b3878; --farm-text:#e6e3ff;
+    --once:#4a301d; --once-stroke:#64432a; --once-text:#ffe9d8;
+    --start:#2c4a17; --start-stroke:#3f6a22; --start-text:#e3f2cf;
+    --finish:#5a4fd6; --finish-stroke:#7a70f0; --finish-text:#ffffff;
+    --todo:#1d1c28; --todo-stroke:#6b6880; --todo-text:#d7d5e6;
+    --locked:#1f1e29; --locked-stroke:#2e2d3b; --locked-text:#737287; --locked-sub:#5f5e71;
+    --current:#ffffff; --current-text:#1c1b2e;
+    --done:#DDEFC6; --done-stroke:#b6d690; --done-text:#173404; --done-badge:#4f8a1e;
+    --edge:#403e55; --edge-done:#7cbd48;
+    --toast-bg:#f0eefc; --toast-text:#1c1b2e;
+    --shadow:0 12px 32px rgba(0,0,0,.5); --shadow-sm:0 4px 14px rgba(0,0,0,.4);
+  }
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  font-family:Poppins,"Segoe UI",system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  -webkit-text-size-adjust:100%;overscroll-behavior:none;
+}
+button{font-family:inherit}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+
+/* ---------- header ---------- */
+header{
+  position:sticky;top:0;z-index:5;flex:none;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 14px;
+  padding-top:max(10px,env(safe-area-inset-top));
+  padding-left:max(14px,env(safe-area-inset-left));
+  padding-right:max(14px,env(safe-area-inset-right));
+}
+.row1{display:flex;align-items:center;gap:10px}
+h1{font-size:15px;font-weight:700;margin:0;flex:1;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.progress{flex:1 1 150px;height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.progress .fill{height:100%;width:0;background:var(--accent);border-radius:inherit;transition:width .35s ease}
+.count{font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.next{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:34px;
+  padding:4px 12px 4px 11px;border-radius:999px;border:1px solid var(--accent-border);
+  background:var(--accent-soft);color:var(--accent);font-size:13px;cursor:pointer;text-align:left;
+}
+.next:hover{filter:brightness(.97)}
+.next .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;white-space:nowrap}
+.next .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.next:disabled{cursor:default}
+.btn{
+  min-height:36px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;
+}
+.btn:hover{filter:brightness(.97)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.ghost{color:var(--muted);background:transparent}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- viewport ---------- */
+#viewport{
+  flex:1;position:relative;overflow:hidden;min-height:0;
+  touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;
+  background:var(--bg);
+}
+#viewport.dragging{cursor:grabbing}
+#canvas{display:block;width:100%;height:100%;outline:none}
+#canvas text{font-family:Poppins,"Segoe UI",system-ui,-apple-system,sans-serif;pointer-events:none}
+
+.edge{fill:none;stroke:var(--edge);stroke-width:1.5}
+.edge.done{stroke:var(--edge-done);stroke-width:2}
+.arrowhead{fill:var(--edge)}
+.arrowhead.done{fill:var(--edge-done)}
+
+.node{cursor:pointer;outline:none}
+.node .card{stroke-width:1;transition:fill .2s,stroke .2s}
+.node .title{font-size:13px;font-weight:600}
+.node .sub{font-size:10.5px;font-weight:400;opacity:.82}
+
+.node.k-farm .card{fill:var(--farm);stroke:var(--farm-stroke)}
+.node.k-farm text{fill:var(--farm-text)}
+.node.k-once .card{fill:var(--once);stroke:var(--once-stroke)}
+.node.k-once text{fill:var(--once-text)}
+.node.k-start .card{fill:var(--start);stroke:var(--start-stroke)}
+.node.k-start text{fill:var(--start-text)}
+.node.k-finish .card{fill:var(--finish);stroke:var(--finish-stroke)}
+.node.k-finish text{fill:var(--finish-text)}
+.node.k-todo .card{fill:var(--todo);stroke:var(--todo-stroke);stroke-dasharray:5 4}
+.node.k-todo text{fill:var(--todo-text)}
+
+.node.s-locked{cursor:default}
+.node.s-locked .card{fill:var(--locked);stroke:var(--locked-stroke)}
+.node.s-locked text{fill:var(--locked-text)}
+.node.s-locked .sub{fill:var(--locked-sub);opacity:1}
+.node.s-current .card{fill:var(--current);stroke:var(--accent);stroke-width:2;stroke-dasharray:none}
+.node.s-current text{fill:var(--current-text)}
+.node.s-done .card{fill:var(--done);stroke:var(--done-stroke);stroke-dasharray:none}
+.node.s-done text{fill:var(--done-text)}
+
+.node:not(.s-locked):hover .card{filter:brightness(.965)}
+.node:focus-visible .card{stroke:var(--accent);stroke-width:2}
+
+.node .tag{display:none}
+.node.s-current .tag{display:block}
+.node .tag rect{fill:var(--accent)}
+.node .tag text{fill:#fff;font-size:8.5px;font-weight:700;letter-spacing:.07em}
+.node .check{display:none}
+.node.s-done .check{display:block}
+.node .check circle{fill:var(--done-badge);stroke:var(--bg);stroke-width:2}
+.node .check path{fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- overlays ---------- */
+.controls{
+  position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:8px;z-index:3;
+}
+.controls button{
+  width:42px;height:42px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);
+  font-size:20px;font-weight:600;line-height:1;cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow-sm);
+}
+.controls button:hover{filter:brightness(.97)}
+.controls svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.legend{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:3}
+.legend summary{
+  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  height:42px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--border);
+  font-size:12.5px;font-weight:600;color:var(--muted);box-shadow:var(--shadow-sm);
+}
+.legend summary::-webkit-details-marker{display:none}
+.legend .panel{
+  position:absolute;left:0;bottom:calc(100% + 8px);width:max-content;max-width:min(300px,calc(100vw - 90px));
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;
+  font-size:12px;display:grid;gap:7px;box-shadow:var(--shadow);line-height:1.35;
+}
+.legend .panel .hd{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
+.legend .panel .hd:first-child{margin-top:0}
+.legend .hint{color:var(--muted);margin-top:2px}
+.sw{display:inline-block;width:15px;height:15px;border-radius:4px;vertical-align:-3px;margin-right:7px;border:1px solid transparent}
+.sw.locked{background:var(--locked);border-color:var(--locked-stroke)}
+.sw.avail{background:var(--farm);border-color:var(--farm-stroke)}
+.sw.cur{background:var(--current);border:2px solid var(--accent)}
+.sw.done{background:var(--done);border-color:var(--done-stroke)}
+.sw.farm{background:var(--farm);border-color:var(--farm-stroke)}
+.sw.once{background:var(--once);border-color:var(--once-stroke)}
+.sw.finish{background:var(--finish)}
+.sw.todo{background:var(--todo);border:1px dashed var(--todo-stroke)}
+
+#toast{
+  position:absolute;left:50%;top:14px;transform:translate(-50%,-8px);z-index:6;
+  background:var(--toast-bg);color:var(--toast-text);padding:10px 14px;border-radius:12px;
+  font-size:13px;line-height:1.4;max-width:min(92%,520px);text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;box-shadow:var(--shadow);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- modal ---------- */
+.backdrop{
+  position:fixed;inset:0;z-index:20;background:rgba(20,16,40,.45);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+.backdrop[hidden]{display:none}
+.dialog{
+  background:var(--surface);color:var(--text);border-radius:18px;padding:20px 20px 16px;
+  width:min(420px,100%);box-shadow:var(--shadow);border:1px solid var(--border);
+  animation:pop .18s ease-out;
+}
+.dialog h2{margin:0 0 8px;font-size:16px;font-weight:700;line-height:1.35}
+.dialog p{margin:0 0 16px;font-size:13.5px;color:var(--muted);line-height:1.5}
+.dialog p:empty{display:none}
+.actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@keyframes pop{from{transform:scale(.96);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="row1">
+      <h1>Survival Progression Tracker</h1>
+      <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+    </div>
+    <div class="status">
+      <div class="progress" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="49" aria-valuenow="0" aria-label="Steps done">
+        <div class="fill" id="fill"></div>
+      </div>
+      <span class="count" id="count">0 / 49 done</span>
+      <button class="next" id="nextBtn" type="button" title="Scroll to this step">
+        <span class="lbl">Up next</span><span class="nm" id="nextName">…</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="viewport" aria-label="Progression tree. Drag to pan, scroll or pinch to zoom.">
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+          <path class="arrowhead" d="M1 1.5 L9 5 L1 8.5 Z"/>
+        </marker>
+        <marker id="arrow-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+          <path class="arrowhead done" d="M1 1.5 L9 5 L1 8.5 Z"/>
+        </marker>
+      </defs>
+      <g id="world">
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </g>
+    </svg>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <details class="legend">
+      <summary>Legend</summary>
+      <div class="panel">
+        <div class="hd">States</div>
+        <div><span class="sw cur"></span>Up next · <span class="sw avail"></span>Available</div>
+        <div><span class="sw done"></span>Done · <span class="sw locked"></span>Locked</div>
+        <div class="hd">Step types</div>
+        <div><span class="sw farm"></span>Farmable or repeatable</div>
+        <div><span class="sw once"></span>One-time find or fight</div>
+        <div><span class="sw finish"></span>Finish line · <span class="sw todo"></span>Not planned yet</div>
+        <div class="hint">Tap a step to mark it done. Tap a green step to undo it.</div>
+      </div>
+    </details>
+
+    <div class="controls">
+      <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+      <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+      <button type="button" id="zoomFit" aria-label="Fit whole tree">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+      </button>
+    </div>
+  </main>
+</div>
+
+<div id="modal" class="backdrop" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="mTitle" aria-describedby="mBody">
+    <h2 id="mTitle"></h2>
+    <p id="mBody"></p>
+    <div class="actions">
+      <button class="btn" id="mCancel" type="button">Cancel</button>
+      <button class="btn primary" id="mOk" type="button">Mark complete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================= DATA ======================= */
+const RAW_NODES = [
+["wood","Start here: mine a tree","Stack of wood + stack of food, day one","start"],
+["coal","40 coal","Torches + smelting","farm"],
+["irongear","Iron gear + shield + tools","First real kit","farm"],
+["cave","Find a big cave","Diamonds, iron, coal","once"],
+["diamonds30","30 diamonds","Diamond gear + table","farm"],
+["obsidian","18 obsidian","Portal, table, ender chest","farm"],
+["villager","Find a villager","Village or cure","once"],
+["breeder","Villager breeder","50 villagers total","farm"],
+["tree","Basic tree farm","Logs, sticks, apples","farm"],
+["apples","64 golden apples","8 gold + apple each","farm"],
+["zombify","Hall + zombify setup","Cure for discounts","farm"],
+["fletchers","10 fletchers","Sticks for emeralds","farm"],
+["librarians","39 librarians","All different enchants","farm"],
+["hall","Finish trading hall","Cells, rails, workstations","farm"],
+["savanna","Find a savanna","Armadillo biome","once"],
+["armadillos","Find armadillos","Two to breed","once"],
+["breed","Breed armadillos","Spider eyes","farm"],
+["zombie","Keep a zombie","Boat or name tag","once"],
+["weakness","Weakness potions","Fermented spider eye","farm"],
+["xp","XP farm","Levels for enchanting","farm"],
+["maxgear","Max gear + tools","Full enchants","farm"],
+["nether","Enter the Nether","Portal, 10 obsidian","once"],
+["blaze","Blaze rods","Fortress blaze farm","farm"],
+["pearls","Ender pearls","Warped forest","farm"],
+["eyes","Obtain end eyes","12 for the portal","farm"],
+["dragon","Defeat ender dragon","Stronghold portal","once"],
+["elytra","Obtain elytra","End city ship","once"],
+["template","Template","Treasure bastion","once"],
+["scrap","36 scrap","Mining at y15","farm"],
+["diamonds64","64 diamonds","Dupes 8 templates","farm"],
+["netherite","Full netherite","36 scrap, 9 pieces, 9 templates","farm"],
+["ominous","Ominous bottle farm","Outpost captains","farm"],
+["totems","Endless totems","Raid farm","farm"],
+["trial","Find trial chambers","Cartographer trial maps (bred villager)","farm"],
+["mace","Max mace","Vault loot only","once"],
+["shulker","Shulker shells","End city farm","farm"],
+["creeper","Advanced creeper farm","Gunpowder for rockets","farm"],
+["slime","Slime farm","Slime blocks for flying machines","farm"],
+["sugarcane","Advanced sugarcane farm","Paper","farm"],
+["fireworks","Unlimited fireworks","Rockets for elytra","farm"],
+["iron","Build iron golem farm","Hoppers for everything","farm"],
+["gold","Gold farm","Zombified piglins, Nether roof","farm"],
+["todo","Potions + beacon","Not planned yet","todo"],
+["root","God-tier survival","Everything renewable, everything maxed","farm"],
+["horn","Obtain note blocks + a horn","8 note blocks, 1 horn","farm"],
+["sift","Enter Sift","One-time","once"],
+["siftite","Obtain siftite","Mine it in Sift","farm"],
+["armor","Full max enchanted siftite armor","Siftite + the 39 librarians","farm"],
+["newmob","Defeat the new mob","Finish line","finish"]
+];
+
+const EDGES = [["wood","coal"],["coal","irongear"],["irongear","cave"],["cave","diamonds30"],["diamonds30","obsidian"],["obsidian","villager"],["villager","breeder"],["breeder","tree"],["tree","apples"],["apples","zombify"],["zombify","fletchers"],["fletchers","librarians"],["librarians","hall"],["hall","maxgear"],
+["savanna","armadillos"],["armadillos","breed"],["breed","xp"],["zombie","xp"],["weakness","xp"],["xp","maxgear"],
+["maxgear","nether"],["nether","blaze"],["blaze","pearls"],["pearls","eyes"],["eyes","dragon"],["dragon","elytra"],["elytra","template"],
+["template","netherite"],["scrap","netherite"],["diamonds64","netherite"],["netherite","ominous"],["ominous","totems"],["totems","mace"],["trial","mace"],
+["mace","root"],["shulker","root"],["fireworks","root"],["iron","root"],["gold","root"],["todo","root"],
+["creeper","slime"],["slime","sugarcane"],["sugarcane","fireworks"],
+["root","horn"],["horn","sift"],["sift","siftite"],["siftite","armor"],["armor","newmob"]];
+
+const ORDER = ["wood","coal","irongear","cave","diamonds30","obsidian","villager","breeder","tree","apples","zombify","fletchers","librarians","hall","savanna","armadillos","breed","zombie","weakness","xp","maxgear","nether","blaze","pearls","eyes","dragon","elytra","template","scrap","diamonds64","netherite","ominous","totems","trial","mace","shulker","creeper","slime","sugarcane","fireworks","iron","gold","todo","root","horn","sift","siftite","armor","newmob"];
+
+// Nodes that branch off the central spine.
+const SIDE = new Set(["savanna","armadillos","breed","zombie","weakness","xp","scrap","diamonds64","trial","shulker","creeper","slime","sugarcane","fireworks","iron","gold","todo"]);
+
+const STORAGE_KEY = "survival-progress";
+
+/* ======================= GRAPH ======================= */
+const NODES = RAW_NODES.map(([id, title, subtitle, kind]) => ({ id, title, subtitle, kind }));
+const byId = new Map(NODES.map(n => [n.id, n]));
+const ins = new Map(NODES.map(n => [n.id, []]));   // prerequisites
+const outs = new Map(NODES.map(n => [n.id, []]));  // what this unlocks
+for (const [a, b] of EDGES) { outs.get(a).push(b); ins.get(b).push(a); }
+const orderIndex = new Map(ORDER.map((id, i) => [id, i]));
+
+function dependents(id) {
+  const seen = new Set(); const stack = [...outs.get(id)];
+  while (stack.length) {
+    const x = stack.pop();
+    if (seen.has(x)) continue;
+    seen.add(x); stack.push(...outs.get(x));
+  }
+  return [...seen].sort((a, b) => orderIndex.get(a) - orderIndex.get(b));
+}
+
+/* ======================= PERSISTENCE ======================= */
+function loadDone() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.filter(id => byId.has(id)) : []);
+  } catch (e) { return new Set(); }
+}
+function saveDone() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...done])); } catch (e) { /* private mode etc. */ }
+}
+let done = loadDone();
+
+/* ======================= STATE ======================= */
+const state = new Map();
+let currentId = null;
+const STATE_LABEL = { locked: "Locked", available: "Available", current: "Up next", done: "Done" };
+
+function computeStates() {
+  currentId = ORDER.find(id => !done.has(id)) || null;
+  for (const n of NODES) {
+    const prereqsDone = ins.get(n.id).every(p => done.has(p));
+    let s;
+    if (done.has(n.id)) s = "done";
+    else if (!prereqsDone) s = "locked";
+    else if (n.id === currentId) s = "current";
+    else s = "available";
+    state.set(n.id, s);
+  }
+}
+
+/* ======================= LAYOUT ======================= */
+const FONT_T = '600 13px Poppins, "Segoe UI", system-ui, -apple-system, sans-serif';
+const FONT_S = '400 10.5px Poppins, "Segoe UI", system-ui, -apple-system, sans-serif';
+const FONT_TAG = '700 8.5px Poppins, "Segoe UI", system-ui, -apple-system, sans-serif';
+const PAD_X = 14, PAD_Y = 9, LH_T = 16, LH_S = 13, GAP_TS = 3;
+const MIN_W = 118, MAX_W = 236, COL_GAP = 28, ROW_GAP = 46;
+
+const mctx = document.createElement("canvas").getContext("2d");
+function textW(s, font) { mctx.font = font; return mctx.measureText(s).width; }
+function wrap(s, font, max) {
+  const words = s.split(/\s+/); const lines = []; let cur = "";
+  for (const w of words) {
+    const t = cur ? cur + " " + w : w;
+    if (!cur || textW(t, font) <= max) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+let bounds = { x: 0, y: 0, w: 1, h: 1 };
+let layoutUsedPoppins = false;
+
+function computeLayout() {
+  layoutUsedPoppins = !!(document.fonts && document.fonts.check("600 13px Poppins"));
+
+  // --- sizes
+  const maxText = MAX_W - 2 * PAD_X;
+  for (const n of NODES) {
+    n.tl = wrap(n.title, FONT_T, maxText);
+    n.sl = wrap(n.subtitle, FONT_S, maxText);
+    const w = Math.max(...n.tl.map(l => textW(l, FONT_T)), ...n.sl.map(l => textW(l, FONT_S)));
+    n.w = Math.round(Math.min(MAX_W, Math.max(MIN_W, w + 2 * PAD_X)));
+    n.h = PAD_Y * 2 + n.tl.length * LH_T + GAP_TS + n.sl.length * LH_S;
+  }
+
+  // --- ranks: spine = recommended order minus side nodes; side nodes sit one rank below what they unlock
+  const spine = ORDER.filter(id => !SIDE.has(id));
+  const rank = new Map(spine.map((id, i) => [id, i]));
+  for (let i = ORDER.length - 1; i >= 0; i--) {
+    const id = ORDER[i];
+    if (rank.has(id)) continue;
+    const ts = outs.get(id).filter(t => rank.has(t));
+    rank.set(id, ts.length ? Math.min(...ts.map(t => rank.get(t))) - 1 : 0);
+  }
+
+  // --- columns: spine at 0, side subtrees packed left/right
+  const col = new Map(spine.map(id => [id, 0]));
+  const sideKids = id => ins.get(id).filter(p => SIDE.has(p));
+  const depth = id => 1 + Math.max(0, ...sideKids(id).map(depth));
+  function subtree(id) {
+    const kids = sideKids(id).sort((a, b) => depth(b) - depth(a));
+    const cols = new Map([[id, 0]]);
+    let x = 0;
+    for (const k of kids) {
+      const L = subtree(k);
+      for (const [kid, c] of L.cols) cols.set(kid, c + x);
+      x += L.w;
+    }
+    return { cols, w: Math.max(1, x) };
+  }
+  const occ = { L: new Map(), R: new Map() };
+  const extent = { L: 0, R: 0 }, count = { L: 0, R: 0 };
+  for (const sid of spine) {
+    for (const rootId of sideKids(sid)) {
+      const L = subtree(rootId);
+      const need = side => {
+        let base = 1;
+        for (const [id, c] of L.cols) base = Math.max(base, (occ[side].get(rank.get(id)) || 0) + 1 - c);
+        return base;
+      };
+      const bL = need("L"), bR = need("R");
+      let side;
+      if (bL !== bR) side = bL < bR ? "L" : "R";
+      else if (extent.L !== extent.R) side = extent.L < extent.R ? "L" : "R";
+      else if (count.L !== count.R) side = count.L < count.R ? "L" : "R";
+      else side = "L";
+      const base = side === "L" ? bL : bR;
+      for (const [id, c] of L.cols) {
+        const a = base + c, rk = rank.get(id);
+        col.set(id, side === "L" ? -a : a);
+        occ[side].set(rk, Math.max(occ[side].get(rk) || 0, a));
+        extent[side] = Math.max(extent[side], a);
+        count[side]++;
+      }
+    }
+  }
+
+  // --- coordinates
+  const colW = new Map();
+  for (const n of NODES) { const c = col.get(n.id); colW.set(c, Math.max(colW.get(c) || 0, n.w)); }
+  const cs = [...colW.keys()], cmin = Math.min(...cs), cmax = Math.max(...cs);
+  const cw = c => colW.get(c) || 0;
+  const xc = new Map([[0, 0]]);
+  for (let c = 1; c <= cmax; c++) xc.set(c, xc.get(c - 1) + cw(c - 1) / 2 + COL_GAP + cw(c) / 2);
+  for (let c = -1; c >= cmin; c--) xc.set(c, xc.get(c + 1) - cw(c + 1) / 2 - COL_GAP - cw(c) / 2);
+
+  const rowH = new Map();
+  for (const n of NODES) { const r = rank.get(n.id); rowH.set(r, Math.max(rowH.get(r) || 0, n.h)); }
+  const rmax = Math.max(...rowH.keys());
+  const yt = new Map(); let y = 0;
+  for (let r = rmax; r >= 0; r--) { yt.set(r, y); y += (rowH.get(r) || 0) + ROW_GAP; }
+
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of NODES) {
+    n.col = col.get(n.id); n.rank = rank.get(n.id);
+    n.x = xc.get(n.col) - n.w / 2;
+    n.y = yt.get(n.rank) + ((rowH.get(n.rank) || 0) - n.h) / 2;
+    x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h);
+  }
+  bounds = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/* ======================= RENDER ======================= */
+const svgNS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+const vp = $("viewport"), svg = $("canvas"), world = $("world"), edgesG = $("edges"), nodesG = $("nodes");
+const nodeEls = new Map(); let edgeEls = [];
+
+function el(tag, attrs, ...kids) {
+  const e = document.createElementNS(svgNS, tag);
+  for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+function edgePath(a, b) {
+  const x1 = a.x + a.w / 2, y1 = a.y, x2 = b.x + b.w / 2, y2 = b.y + b.h + 1;
+  if (Math.abs(x1 - x2) < 0.5) return `M${x1} ${y1} L${x2} ${y2}`;
+  const ym = (y1 + y2) / 2;
+  return `M${x1} ${y1} C${x1} ${ym} ${x2} ${ym} ${x2} ${y2}`;
+}
+
+function render() {
+  edgesG.replaceChildren(); nodesG.replaceChildren(); nodeEls.clear(); edgeEls = [];
+  for (const [a, b] of EDGES) {
+    const p = el("path", { class: "edge", "data-from": a, "data-to": b, d: edgePath(byId.get(a), byId.get(b)), "marker-end": "url(#arrow)" });
+    edgesG.append(p); edgeEls.push(p);
+  }
+  const tagW = Math.ceil(textW("UP NEXT", FONT_TAG) + 0.6 * 7) + 16;
+  for (const n of NODES) {
+    const g = el("g", { class: `node k-${n.kind}`, "data-id": n.id, transform: `translate(${n.x} ${n.y})`, role: "button", tabindex: 0 });
+    g.append(el("rect", { class: "card", width: n.w, height: n.h, rx: 11 }));
+    const title = el("text", { class: "title", "text-anchor": "middle" });
+    n.tl.forEach((line, i) => title.append(el("tspan", { x: n.w / 2, y: PAD_Y + 12 + i * LH_T }, line)));
+    const sub = el("text", { class: "sub", "text-anchor": "middle" });
+    const subY = PAD_Y + n.tl.length * LH_T + GAP_TS + 9;
+    n.sl.forEach((line, i) => sub.append(el("tspan", { x: n.w / 2, y: subY + i * LH_S }, line)));
+    g.append(title, sub);
+    g.append(el("g", { class: "tag", transform: "translate(10 -8)" },
+      el("rect", { width: tagW, height: 16, rx: 8 }),
+      el("text", { x: tagW / 2, y: 11.3, "text-anchor": "middle" }, "UP NEXT")));
+    g.append(el("g", { class: "check", transform: `translate(${n.w - 3} 3)` },
+      el("circle", { r: 8.5 }),
+      el("path", { d: "M-3.6 0.2 L-1.1 2.7 L3.6 -2.6" })));
+    nodesG.append(g); nodeEls.set(n.id, g);
+  }
+}
+
+const fillEl = $("fill"), countEl = $("count"), progressEl = $("progress"), nextBtn = $("nextBtn"), nextName = $("nextName");
+
+function updateStates() {
+  computeStates();
+  for (const n of NODES) {
+    const g = nodeEls.get(n.id), s = state.get(n.id);
+    g.setAttribute("class", `node k-${n.kind} s-${s}`);
+    g.setAttribute("aria-label", `${n.title}. ${n.subtitle}. ${STATE_LABEL[s]}.`);
+    g.setAttribute("aria-pressed", s === "done" ? "true" : "false");
+  }
+  for (const p of edgeEls) {
+    const d = done.has(p.getAttribute("data-to"));
+    p.setAttribute("class", "edge" + (d ? " done" : ""));
+    p.setAttribute("marker-end", d ? "url(#arrow-done)" : "url(#arrow)");
+  }
+  const cur = nodeEls.get(currentId);
+  if (cur) nodesG.append(cur); // draw the current card above its neighbours
+  const nDone = done.size, total = NODES.length;
+  fillEl.style.width = (nDone / total * 100) + "%";
+  progressEl.setAttribute("aria-valuenow", nDone);
+  countEl.textContent = `${nDone} / ${total} done`;
+  if (currentId) { nextName.textContent = byId.get(currentId).title; nextBtn.disabled = false; }
+  else { nextName.textContent = "All done! 🎉"; nextBtn.disabled = true; }
+}
+
+/* ======================= PAN / ZOOM ======================= */
+const view = { x: 0, y: 0, k: 1 };
+const K_MIN = 0.12, K_MAX = 3;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+let anim = null;
+
+function setView(x, y, k) {
+  view.x = x; view.y = y; view.k = k;
+  world.setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
+}
+function stopAnim() { if (anim) { cancelAnimationFrame(anim); anim = null; } }
+function animateTo(x, y, k, ms = 340) {
+  stopAnim();
+  if (reduceMotion) { setView(x, y, k); return; }
+  const s = { ...view }; const t0 = performance.now();
+  const step = t => {
+    let p = Math.min(1, (t - t0) / ms); p = 1 - Math.pow(1 - p, 3);
+    setView(s.x + (x - s.x) * p, s.y + (y - s.y) * p, s.k + (k - s.k) * p);
+    anim = p < 1 ? requestAnimationFrame(step) : null;
+  };
+  anim = requestAnimationFrame(step);
+}
+function vpSize() { const r = vp.getBoundingClientRect(); return { w: r.width, h: r.height, left: r.left, top: r.top }; }
+function baseScale() { return clamp(vpSize().w / 460, 0.85, 1); }
+function zoomAt(px, py, factor, animate) {
+  const k = clamp(view.k * factor, K_MIN, K_MAX), f = k / view.k;
+  const x = px - (px - view.x) * f, y = py - (py - view.y) * f;
+  animate ? animateTo(x, y, k, 220) : setView(x, y, k);
+}
+function focusNode(id, animate = true, kOverride) {
+  const n = byId.get(id); if (!n) return;
+  const { w, h } = vpSize();
+  const k = kOverride != null ? kOverride : clamp(Math.max(view.k, baseScale()), 0.6, 1.6);
+  const x = w / 2 - (n.x + n.w / 2) * k, y = h / 2 - (n.y + n.h / 2) * k;
+  animate ? animateTo(x, y, k) : setView(x, y, k);
+}
+function fitAll(animate = true) {
+  const { w, h } = vpSize(); const m = 36;
+  const k = clamp(Math.min((w - 2 * m) / bounds.w, (h - 2 * m) / bounds.h), K_MIN, 1.5);
+  const x = (w - bounds.w * k) / 2 - bounds.x * k, y = (h - bounds.h * k) / 2 - bounds.y * k;
+  animate ? animateTo(x, y, k) : setView(x, y, k);
+}
+function ensureVisible(id) {
+  const n = byId.get(id); if (!n) return;
+  const { w, h } = vpSize(); const m = 24;
+  const sx = view.x + n.x * view.k, sy = view.y + n.y * view.k, sw = n.w * view.k, sh = n.h * view.k;
+  if (sx < m || sy < m || sx + sw > w - m || sy + sh > h - m) focusNode(id);
+}
+
+const ptrs = new Map(); let gesture = null;
+const local = e => { const s = vpSize(); return { x: e.clientX - s.left, y: e.clientY - s.top }; };
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function startGesture(target) {
+  const pts = [...ptrs.values()];
+  if (pts.length === 1) {
+    gesture = { type: "drag", sx: pts[0].x, sy: pts[0].y, vx: view.x, vy: view.y, moved: gesture ? (gesture.moved || gesture.type === "pinch") : false, target, t0: performance.now() };
+  } else if (pts.length >= 2) {
+    const [a, b] = pts; const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    gesture = { type: "pinch", d0: dist(a, b), k0: view.k, px: (mx - view.x) / view.k, py: (my - view.y) / view.k, moved: true };
+  } else gesture = null;
+}
+vp.addEventListener("pointerdown", e => {
+  if (e.target.closest(".controls, .legend, #toast")) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  stopAnim();
+  try { vp.setPointerCapture(e.pointerId); } catch (_) {}
+  ptrs.set(e.pointerId, local(e));
+  startGesture(e.target);
+  if (ptrs.size === 1) vp.classList.add("dragging");
+  e.preventDefault();
+});
+vp.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId) || !gesture) return;
+  ptrs.set(e.pointerId, local(e));
+  if (gesture.type === "drag") {
+    const p = ptrs.get(e.pointerId); const dx = p.x - gesture.sx, dy = p.y - gesture.sy;
+    if (!gesture.moved && Math.hypot(dx, dy) > 6) gesture.moved = true;
+    if (gesture.moved) setView(gesture.vx + dx, gesture.vy + dy, view.k);
+  } else {
+    const [a, b] = [...ptrs.values()];
+    const k = clamp(gesture.k0 * dist(a, b) / Math.max(1, gesture.d0), K_MIN, K_MAX);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    setView(mx - gesture.px * k, my - gesture.py * k, k);
+  }
+});
+function endPointer(e) {
+  if (!ptrs.has(e.pointerId)) return;
+  const tap = gesture && gesture.type === "drag" && !gesture.moved && e.type === "pointerup";
+  const target = gesture && gesture.target;
+  ptrs.delete(e.pointerId);
+  if (ptrs.size === 0) { gesture = null; vp.classList.remove("dragging"); }
+  else startGesture(target);
+  if (tap && target) {
+    const g = target.closest("g.node");
+    if (g) onNodeTap(g.getAttribute("data-id"));
+  }
+}
+vp.addEventListener("pointerup", endPointer);
+vp.addEventListener("pointercancel", endPointer);
+vp.addEventListener("wheel", e => {
+  if (e.target.closest(".legend")) return;
+  e.preventDefault(); stopAnim();
+  let dy = e.deltaY; if (e.deltaMode === 1) dy *= 16; else if (e.deltaMode === 2) dy *= 400;
+  const p = local(e);
+  zoomAt(p.x, p.y, Math.exp(-dy * (e.ctrlKey ? 0.012 : 0.0018)), false);
+}, { passive: false });
+vp.addEventListener("dblclick", e => { if (!e.target.closest(".controls, .legend")) { const p = local(e); zoomAt(p.x, p.y, 1.6, true); } });
+document.addEventListener("gesturestart", e => e.preventDefault());
+let lastSize = vpSize();
+window.addEventListener("resize", () => { // keep the same world point centred when the viewport changes (e.g. phone rotation)
+  const s = vpSize();
+  if (!s.w || !s.h) return;
+  const cx = (lastSize.w / 2 - view.x) / view.k, cy = (lastSize.h / 2 - view.y) / view.k;
+  setView(s.w / 2 - cx * view.k, s.h / 2 - cy * view.k, view.k);
+  lastSize = s;
+});
+
+$("zoomIn").addEventListener("click", () => { const s = vpSize(); zoomAt(s.w / 2, s.h / 2, 1.3, true); });
+$("zoomOut").addEventListener("click", () => { const s = vpSize(); zoomAt(s.w / 2, s.h / 2, 1 / 1.3, true); });
+$("zoomFit").addEventListener("click", () => fitAll(true));
+nextBtn.addEventListener("click", () => { if (currentId) focusNode(currentId, true, Math.max(view.k, baseScale())); });
+
+nodesG.addEventListener("keydown", e => {
+  const g = e.target.closest && e.target.closest("g.node");
+  if (!g) return;
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onNodeTap(g.getAttribute("data-id")); }
+});
+nodesG.addEventListener("focusin", e => { const g = e.target.closest && e.target.closest("g.node"); if (g) ensureVisible(g.getAttribute("data-id")); });
+
+/* ======================= MODAL + TOAST ======================= */
+const modal = $("modal"), mTitle = $("mTitle"), mBody = $("mBody"), mOk = $("mOk"), mCancel = $("mCancel");
+let modalCb = null, lastFocus = null;
+function openModal({ title, body, ok, cls, onOk }) {
+  mTitle.textContent = title; mBody.textContent = body || "";
+  mOk.textContent = ok; mOk.className = "btn " + (cls || "primary");
+  modalCb = onOk; lastFocus = document.activeElement;
+  modal.hidden = false; mOk.focus();
+}
+function closeModal() {
+  if (modal.hidden) return;
+  modal.hidden = true; modalCb = null;
+  if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
+}
+mCancel.addEventListener("click", closeModal);
+mOk.addEventListener("click", () => { const cb = modalCb; closeModal(); if (cb) cb(); });
+modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+modal.addEventListener("keydown", e => {
+  if (e.key === "Tab") { // keep focus inside the dialog
+    const first = mCancel, last = mOk;
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) closeModal(); });
+
+const toastEl = $("toast"); let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3400);
+}
+
+/* ======================= INTERACTION ======================= */
+const q = s => `‘${s}’`;
+function onNodeTap(id) {
+  const n = byId.get(id), s = state.get(id);
+  if (!n) return;
+  if (s === "locked") {
+    const missing = ins.get(id).filter(p => !done.has(p)).map(p => byId.get(p).title);
+    toast(`Locked — finish ${missing.join(", ")} first`);
+    return;
+  }
+  if (s === "done") {
+    const deps = dependents(id).filter(d => done.has(d));
+    const body = deps.length
+      ? `This also marks ${deps.length} step${deps.length > 1 ? "s" : ""} that depend${deps.length > 1 ? "" : "s"} on it as not done: ${deps.map(d => byId.get(d).title).join(", ")}.`
+      : "";
+    openModal({
+      title: `Mark ${q(n.title)} as not done?`, body, ok: "Mark not done", cls: "danger",
+      onOk() { done.delete(id); for (const d of deps) done.delete(d); saveDone(); updateStates(); }
+    });
+    return;
+  }
+  openModal({
+    title: `Mark ${q(n.title)} as complete?`, body: n.subtitle, ok: "Mark complete", cls: "primary",
+    onOk() { done.add(id); saveDone(); updateStates(); if (currentId) ensureVisible(currentId); }
+  });
+}
+$("resetBtn").addEventListener("click", () => openModal({
+  title: "Reset all progress?", body: `All ${NODES.length} steps go back to not done, and “Start here: mine a tree” becomes the current step.`,
+  ok: "Reset", cls: "danger",
+  onOk() { done = new Set(); saveDone(); updateStates(); if (currentId) focusNode(currentId); }
+}));
+
+/* ======================= INIT ======================= */
+function build(keepCenter) {
+  const s = vpSize();
+  const center = keepCenter ? { x: (s.w / 2 - view.x) / view.k, y: (s.h / 2 - view.y) / view.k } : null;
+  computeLayout(); render(); updateStates();
+  if (center) setView(s.w / 2 - center.x * view.k, s.h / 2 - center.y * view.k, view.k);
+}
+async function init() {
+  if (document.fonts) {
+    try {
+      await Promise.race([
+        Promise.all([document.fonts.load("600 13px Poppins"), document.fonts.load("400 10.5px Poppins"), document.fonts.load("700 8.5px Poppins")]),
+        new Promise(r => setTimeout(r, 2500))
+      ]);
+    } catch (_) {}
+    document.fonts.addEventListener("loadingdone", () => {
+      if (!layoutUsedPoppins && document.fonts.check("600 13px Poppins")) build(true);
+    });
+  }
+  build(false);
+  focusNode(currentId || ORDER[0], false, baseScale());
+}
+init();
+})();
+</script>
+</body>
+</html>
